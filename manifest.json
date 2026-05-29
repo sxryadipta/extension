@@ -2,10 +2,10 @@
   "manifest_version": 3,
   "name": "Gitsync",
   "version": "1.0.0",
-  "permissions": ["webNavigation"],
+  "permissions": ["webNavigation", "storage", "tabs"],
   "description": "A basic extension that helps you store your leetcode problems to github.",
   "action":{
-    "default_popup":"popup.html",
+    "default_popup":"popup/popup.html",
     "default_icon":"icon.png"
   },
   "background": {

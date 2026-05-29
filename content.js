@@ -1,5 +1,8 @@
-const title = document.querySelector('[data-cy="question-title"]').innerText;
+console.log("Content script loaded!", document.querySelector('[data-cy="question-title"]'));
 
-chrome.runtime.sendMessage({
-  problemTitle: title
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "GET_TITLE") {
+    const el = document.querySelector('.text-title-large a');  // target the <a> tag
+    sendResponse({ title: el ? el.innerText.trim() : null });
+  }
 });
