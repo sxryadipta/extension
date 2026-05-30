@@ -33,7 +33,7 @@ async function fetchRepositories(username) {
   try {
     repoSelect.innerHTML = '<option value="">Loading...</option>';
 
-    const { pat } = await chrome.storage.local.get("pat"); // 👈 retrieve PAT from storage
+    const { pat } = await chrome.storage.local.get("pat"); 
 
     if (!pat) {
       alert('No PAT found. Please set your GitHub token first.');
@@ -43,7 +43,7 @@ async function fetchRepositories(username) {
 
     const response = await fetch(url, {
       headers: {
-        "Authorization": `Bearer ${pat}`,  // 👈 use PAT from storage
+        "Authorization": `Bearer ${pat}`,  
         "Accept": "application/vnd.github+json"
       }
     });
@@ -63,7 +63,7 @@ async function fetchRepositories(username) {
 
     repos.forEach(repo => {
       const option = document.createElement('option');
-      option.value = repo.name;       // 👈 store repo NAME not URL (needed for API calls later)
+      option.value = repo.name;       
       option.textContent = repo.name;
       repoSelect.appendChild(option);
     });
@@ -73,3 +73,75 @@ async function fetchRepositories(username) {
     repoSelect.innerHTML = '<option value="">Error loading repos</option>';
   }
 }
+
+// this code stores the username and repository selected.
+
+repoSelect.addEventListener('change', () => {
+  chrome.storage.local.set({ 
+    owner: usernameInput.value.trim(),
+    repo: repoSelect.value 
+  });
+});
+
+
+//this code syncs a hardcoded file to selected repo.
+
+const syncBtn = document.getElementById('syncBtn');
+const syncStatus = document.getElementById('sync-status');
+
+syncBtn.addEventListener('click', async () => {
+  const { pat, owner, repo } = await chrome.storage.local.get(["pat", "owner", "repo"]);
+
+  if (!pat || !owner || !repo) {
+    syncStatus.innerText = "❌ Missing PAT, username or repo.";
+    return;
+  }
+
+  const path = "solutions/test.md";           
+  const fileContent = "# Test\n\nThis is a test file."; 
+
+  syncStatus.innerText = "Syncing...";
+
+  try {
+    // Step 1 — check if file already exists to get sha
+    const checkRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+      headers: {
+        "Authorization": `Bearer ${pat}`,
+        "Accept": "application/vnd.github+json"
+      }
+    });
+
+    let sha = undefined;
+    if (checkRes.ok) {
+      const checkData = await checkRes.json();
+      sha = checkData.sha; // needed if updating existing file
+    }
+
+    // Step 2 — push the file
+    const body = {
+      message: "test: push from GitSync",
+      content: btoa(fileContent)  // must be base64 encoded
+    };
+    if (sha) body.sha = sha;      // include sha only if file already exists
+
+    const pushRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+      method: "PUT",
+      headers: {
+        "Authorization": `Bearer ${pat}`,
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!pushRes.ok) {
+      const err = await pushRes.json();
+      throw new Error(err.message);
+    }
+
+    syncStatus.innerText = "✅ Pushed successfully!";
+
+  } catch (error) {
+    syncStatus.innerText = `❌ ${error.message}`;
+  }
+});
