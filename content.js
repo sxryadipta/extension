@@ -1,3 +1,4 @@
+//this part sends the title to popup.js file.
 console.log("Content script loaded!", document.querySelector('[data-cy="question-title"]'));
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

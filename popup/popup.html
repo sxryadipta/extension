@@ -11,7 +11,21 @@
   <p id="problem-name"> </p>
   
   
-  <button id="bullshit">Loading?</button>
+  <p>Sync it to GitHub?</p>
+
+  <!-- Input username -->
+  <label for="usernameInput">Github Username:</label>
+  <input type="text" id="usernameInput" placeholder="Enter your GitHub username ">
+  <button id="fetchBtn">Load Repositories</button>
+  
+  <br>
+
+  <!-- Dropdown repo select -->
+  <label for="repoSelect">Choose a repository:</label>
+  <select id="repoSelect">
+  <option value="">-- Select a Repo --</option>
+  </select>
+
   <script src="popup.js"></script>
 </body>
 </html>
