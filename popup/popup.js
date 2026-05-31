@@ -1,4 +1,5 @@
 // this part shows the title of the problem in the popup.
+
 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
   chrome.tabs.sendMessage(tabs[0].id, { type: "GET_TITLE" }, (response) => {
     if (response?.title) {
@@ -84,7 +85,27 @@ repoSelect.addEventListener('change', () => {
 });
 
 
-//this code syncs a hardcoded file to selected repo.
+
+
+// this is the code for saving the files in the selected repo.
+
+
+chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+  if (!tabs[0].url.includes("leetcode.com/problems/")) {
+    console.log("Not a LeetCode problem page");
+    return;
+  }
+
+
+  chrome.tabs.sendMessage(tabs[0].id, { type: "GET_DESCRIPTION" }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.log("Content script not ready:", chrome.runtime.lastError.message);
+      return;
+    }
+    console.log(response.description);
+  });
+});
+
 
 const syncBtn = document.getElementById('syncBtn');
 const syncStatus = document.getElementById('sync-status');
@@ -97,51 +118,69 @@ syncBtn.addEventListener('click', async () => {
     return;
   }
 
-  const path = "solutions/test.md";           
-  const fileContent = "# Test\n\nThis is a test file."; 
-
   syncStatus.innerText = "Syncing...";
 
-  try {
-    // Step 1 — check if file already exists to get sha
-    const checkRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
-      headers: {
-        "Authorization": `Bearer ${pat}`,
-        "Accept": "application/vnd.github+json"
-      }
+  // getting title and description from content script
+  chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+    chrome.tabs.sendMessage(tabs[0].id, { type: "GET_TITLE" }, async (titleRes) => {
+      chrome.tabs.sendMessage(tabs[0].id, { type: "GET_DESCRIPTION" }, async (descRes) => {
+
+        const title = titleRes?.title;
+        const description = descRes?.description;
+
+        if (!title || !description) {
+          syncStatus.innerText = "❌ Could not fetch problem data.";
+          return;
+        }
+
+        const folderName = title.toLowerCase().replace(/ /g, "-"); // e.g. "1. Two Sum" → "1.-two-sum"
+        const mdPath = `solutions/${folderName}/Problem.md`;
+
+        try {
+          await pushFile(pat, owner, repo, mdPath, description, `add: ${title} problem`);
+          syncStatus.innerText = "✅ Pushed successfully!";
+        } catch (error) {
+          syncStatus.innerText = `❌ ${error.message}`;
+        }
+
+      });
     });
-
-    let sha = undefined;
-    if (checkRes.ok) {
-      const checkData = await checkRes.json();
-      sha = checkData.sha; // needed if updating existing file
-    }
-
-    // Step 2 — push the file
-    const body = {
-      message: "test: push from GitSync",
-      content: btoa(fileContent)  // must be base64 encoded
-    };
-    if (sha) body.sha = sha;      // include sha only if file already exists
-
-    const pushRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
-      method: "PUT",
-      headers: {
-        "Authorization": `Bearer ${pat}`,
-        "Accept": "application/vnd.github+json",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!pushRes.ok) {
-      const err = await pushRes.json();
-      throw new Error(err.message);
-    }
-
-    syncStatus.innerText = "✅ Pushed successfully!";
-
-  } catch (error) {
-    syncStatus.innerText = `❌ ${error.message}`;
-  }
+  });
 });
+
+async function pushFile(pat, owner, repo, path, content, commitMessage) {
+  // check if file exists to get sha
+  const checkRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+    headers: {
+      "Authorization": `Bearer ${pat}`,
+      "Accept": "application/vnd.github+json"
+    }
+  });
+
+  let sha = undefined;
+  if (checkRes.ok) {
+    const checkData = await checkRes.json();
+    sha = checkData.sha;
+  }
+
+  const body = {
+    message: commitMessage,
+    content: btoa(unescape(encodeURIComponent(content))) // handles special characters
+  };
+  if (sha) body.sha = sha;
+
+  const pushRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+    method: "PUT",
+    headers: {
+      "Authorization": `Bearer ${pat}`,
+      "Accept": "application/vnd.github+json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!pushRes.ok) {
+    const err = await pushRes.json();
+    throw new Error(err.message);
+  }
+}
