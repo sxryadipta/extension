@@ -1,4 +1,3 @@
-
 // this part shows the title of the problem in the popup.
 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
   chrome.tabs.sendMessage(tabs[0].id, { type: "GET_TITLE" }, (response) => {
@@ -81,9 +80,7 @@ const syncBtn = document.getElementById('syncBtn');
 const syncStatus = document.getElementById('sync-status');
 
 syncBtn.addEventListener('click', async () => {
-  console.log("SYNC CLICKED");
   const { pat, owner, repo } = await chrome.storage.local.get(["pat", "owner", "repo"]);
-  console.log("PAT:", pat, "OWNER:", owner, "REPO", repo);
 
   if (!pat || !owner || !repo) {
     syncStatus.innerText = "❌ Missing PAT, username or repo.";
@@ -99,24 +96,16 @@ syncBtn.addEventListener('click', async () => {
         else resolve(response);
       });
     });
-    if (type === "GET_CODE") setTimeout(() => resolve(null), 3000)
+    if (type === "GET_CODE") setTimeout(() => resolve(null), 5000);
   });
 
   const titleRes = await sendMessage("GET_TITLE");
-  console.log("titleRes:", titleRes);
-
   const descRes = await sendMessage("GET_DESCRIPTION");
-  console.log("descRes:", descRes);
-
   const codeRes = await sendMessage("GET_CODE");
-  console.log("codeRes:", codeRes);
-
-  console.log({ titleRes, descRes, codeRes });
 
   const title = titleRes?.title;
   const description = descRes?.description;
   const code = codeRes?.code;
-  const lang = codeRes?.lang;
 
   if (!title || !description || !code) {
     syncStatus.innerText = "❌ Could not fetch problem data.";
@@ -125,9 +114,7 @@ syncBtn.addEventListener('click', async () => {
 
   const folderName = title.toLowerCase().replace(/ /g, "-");
   const mdPath = `solutions/${folderName}/Problem.md`;
-  const langExtensions = { "C++": "cpp", "Python3": "py", "Python": "py", "Java": "java", "JavaScript": "js" };
-  const ext = langExtensions[lang] || "txt";
-  const codePath = `solutions/${folderName}/Solution.${ext}`;
+  const codePath = `solutions/${folderName}/Solution.cpp`;
 
   try {
     await pushFile(pat, owner, repo, mdPath, description, `add: ${title} problem`);
@@ -137,8 +124,6 @@ syncBtn.addEventListener('click', async () => {
     syncStatus.innerText = `❌ ${error.message}`;
   }
 });
-
-
 
 async function pushFile(pat, owner, repo, path, content, commitMessage) {
   const checkRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
