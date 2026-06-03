@@ -10,19 +10,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "GET_CODE") {
-    document.addEventListener('MONACO_CODE', (e) => {
+    const handler = (e) => {
+      document.removeEventListener('MONACO_CODE', handler);
       sendResponse({ code: e.detail.code, lang: e.detail.lang });
-    }, { once: true });
+    };
+    document.addEventListener('MONACO_CODE', handler);
 
     const script = document.createElement('script');
-    script.textContent = `
-      const code = monaco.editor.getModels()[0].getValue();
-      const lang = document.querySelectorAll('button[aria-haspopup="dialog"]')[1]?.childNodes[0]?.textContent?.trim();
-      document.dispatchEvent(new CustomEvent('MONACO_CODE', { detail: { code, lang } }));
-    `;
+    script.src = chrome.runtime.getURL('injected.js');
     document.documentElement.appendChild(script);
-    script.remove();
-  }  
-
-  return true; 
+    return true;
+  }
 });
